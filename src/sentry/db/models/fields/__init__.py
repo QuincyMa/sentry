@@ -13,6 +13,7 @@ from .bounded import *  # NOQA
 from .citext import *  # NOQA
 from .encrypted import *  # NOQA
 from .foreignkey import *  # NOQA
+from .guid import *  # NOQA
 from .gzippeddict import *  # NOQA
 from .node import *  # NOQA
 from .pickle import *  # NOQA
