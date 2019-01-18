@@ -20,9 +20,8 @@ const USE_HOT_MODULE_RELOAD = !IS_PRODUCTION && WEBPACK_DEV_PORT && SENTRY_DEVSE
 const WEBPACK_MODE = IS_PRODUCTION ? 'production' : 'development';
 
 // this is set by setup.py sdist
-const staticPrefix = 'src/sentry/static/sentry';
-const distPath =
-  env.SENTRY_STATIC_DIST_PATH || path.join(__dirname, staticPrefix, 'dist');
+const staticPrefix = path.join(__dirname, 'src/sentry/static/sentry');
+const distPath = env.SENTRY_STATIC_DIST_PATH || path.join(staticPrefix, 'dist');
 
 /**
  * Locale file extraction build step
@@ -182,12 +181,12 @@ const cacheGroups = {
 const appConfig = {
   mode: WEBPACK_MODE,
   entry: {app: 'app'},
-  context: path.join(__dirname, staticPrefix),
+  context: staticPrefix,
   module: {
     rules: [
       {
         test: /\.jsx?$/,
-        include: path.join(__dirname, staticPrefix),
+        include: [staticPrefix],
         exclude: /(vendor|node_modules|dist)/,
         use: {
           loader: 'babel-loader',
@@ -271,7 +270,7 @@ const appConfig = {
   ],
   resolve: {
     alias: {
-      app: path.join(__dirname, 'src', 'sentry', 'static', 'sentry', 'app'),
+      app: path.join(staticPrefix, 'app'),
       'app-test': path.join(__dirname, 'tests', 'js'),
       'sentry-locale': path.join(__dirname, 'src', 'sentry', 'locale'),
       'integration-docs-platforms':
@@ -312,20 +311,20 @@ const legacyCssConfig = {
     // e.g. Trello, Teamwork
     select2: 'less/select2.less',
   },
-  context: path.join(__dirname, staticPrefix),
+  context: staticPrefix,
   output: {
     path: distPath,
   },
   plugins: [new ExtractTextPlugin()],
   resolve: {
     extensions: ['.less', '.js'],
-    modules: [path.join(__dirname, staticPrefix), 'node_modules'],
+    modules: [staticPrefix, 'node_modules'],
   },
   module: {
     rules: [
       {
         test: /\.less$/,
-        include: path.join(__dirname, staticPrefix),
+        include: [staticPrefix],
         use: [ExtractTextPlugin.loader, 'css-loader', 'less-loader'],
       },
       {
@@ -387,4 +386,24 @@ if (IS_PRODUCTION) {
   });
 }
 
-module.exports = [appConfig, legacyCssConfig];
+const configs = {appConfig, legacyCssConfig};
+
+/**
+ * The webpack configuration may be overridden by specifying
+ * SENTRY_WEBPACK_LAYER to a module which exports a function that accepts an
+ * array of webpack configuration objects and applies mutates to the
+ * configurations.
+ *
+ * sentry.io's private codebase makes use of this functionality to insert
+ * additional functionality into the Sentry frontend application.
+ */
+if (env.SENTRY_WEBPACK_LAYER) {
+  const options = {
+    sentryStaticPrefix: staticPrefix,
+    sentryPath: __dirname,
+  };
+
+  require(env.SENTRY_WEBPACK_LAYER)(configs, options);
+}
+
+module.exports = Object.values(configs);
